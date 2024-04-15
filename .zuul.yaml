@@ -1,0 +1,38 @@
+---
+- job:
+    name: vault-raft-backup-build-image
+    parent: otc-build-container-image
+    description: Build Vault Raft Backup container image
+    provides: vault-raft-backup-image
+    vars: &vault_raft_backup_image_vars
+      container_images:
+        - context: .
+          registry: quay.io
+          repository: opentelekomcloud/vault-raft-backup
+          tags:
+            "{{ zuul.tag is defined | ternary([zuul.get('tag', '').split('.')[0], '.'.join(zuul.get('tag', '').split('.')[:2]), zuul.get('tag', '')], ['latest']) }}"
+
+- job:
+    name: vault-raft-backup-upload-image
+    parent: otcinfra-upload-container-images
+    vars: *vault_raft_backup_image_vars
+
+- project:
+    merge-mode: squash-merge
+    default-branch: main
+    check:
+      jobs:
+        - otc-golangci-lint
+        - golang-make-vet
+        - goreleaser-build
+        - vault-raft-backup-build-image
+    gate:
+      jobs:
+        - otc-golangci-lint
+        - golang-make-vet
+        - goreleaser-build
+        - vault-raft-backup-build-image
+    tag:
+      jobs:
+        - release-goreleaser
+        - vault-raft-backup-upload-image
