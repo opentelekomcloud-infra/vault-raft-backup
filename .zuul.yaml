@@ -10,7 +10,7 @@
           registry: quay.io
           repository: opentelekomcloud/vault-raft-backup
           tags:
-            "{{ zuul.tag is defined | ternary([zuul.get('tag', '').split('.')[0], '.'.join(zuul.get('tag', '').split('.')[:2]), zuul.get('tag', '')], ['latest']) }}"
+            &imagetag "{{ zuul.tag is defined | ternary([zuul.get('tag', '').split('.')[0], '.'.join(zuul.get('tag', '').split('.')[:2]), zuul.get('tag', '')], ['latest']) }}"
 
 - job:
     name: vault-raft-backup-upload-image
