@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
@@ -36,7 +35,7 @@ var backupCmd = &cobra.Command{
 		if err != nil {
 			log.Fatalf("Backup failed: %s\n", err)
 		}
-		fmt.Println("Backup completed successfully")
+		log.Println("Backup completed successfully")
 	},
 }
 
