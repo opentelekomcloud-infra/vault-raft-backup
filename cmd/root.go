@@ -1,16 +1,18 @@
 package cmd
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 )
 
-// Global variables for command-line flags.
+// Global variables to hold command line flags for configuration.
 var (
 	vaultRoleID   string
 	vaultSecretID string
@@ -23,6 +25,7 @@ var (
 	authURL       string
 	domainName    string
 	projectName   string
+	cfgFile       string
 )
 
 // rootCmd defines the base command when called without any subcommands.
@@ -30,64 +33,98 @@ var rootCmd = &cobra.Command{
 	Use:   "vault-raft-backup",
 	Short: "Backup Vault data using Raft snapshots",
 	Run: func(cmd *cobra.Command, args []string) {
-		err := cmd.Help()
-		if err != nil {
-			log.Fatalf("failed to show help: %s\n", err)
+		// Show help if no subcommands are called.
+		if err := cmd.Help(); err != nil {
+			log.Fatalf("Failed to show help: %s\n", err)
 		}
 	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
-	cobra.CheckErr(rootCmd.Execute())
-}
-
-// initConfig configures the application by binding environment variables and setting up the configuration.
-func initConfig() {
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	if err := viper.BindPFlags(backupCmd.Flags()); err != nil {
-		log.Fatalf("cannot bind Viper to flags:%v", err)
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Error during command execution: %s\n", err)
 	}
-	checkAndSetEnv()
 }
 
 func init() {
 	cobra.OnInitialize(initConfig) // Initialize the configuration when the Cobra application starts.
 
-	// Define command line flags and mark required flags.
-	backupCmd.Flags().StringVarP(&vaultRoleID, "vault-role-id", "", "", "Vault AppRole role ID (required)")
-	if err := backupCmd.MarkFlagRequired("vault-role-id"); err != nil {
-		log.Fatalf("error on marking flag as required: %v", err)
-	}
-	backupCmd.Flags().StringVarP(&vaultSecretID, "vault-secret-id", "", "", "Vault AppRole secret ID (required)")
-	if err := backupCmd.MarkFlagRequired("vault-secret-id"); err != nil {
-		log.Fatalf("error on marking flag as required: %v", err)
-	}
-	backupCmd.Flags().StringVarP(&vaultAddr, "vault-address", "", "https://127.0.0.1:8200", "Vault address")
-	backupCmd.PersistentFlags().DurationVar(&vaultTimeout, "vault-timeout", 60*time.Second, "Vault client timeout")
-	backupCmd.Flags().StringVarP(&obsBucketName, "obs-bucket-name", "", "", "OBS bucket name (required)")
-	if err := backupCmd.MarkFlagRequired("obs-bucket-name"); err != nil {
-		log.Fatalf("error on marking flag as required: %v", err)
-	}
-	backupCmd.Flags().StringVarP(&obsObjectName, "obs-object-name", "", "vault-raft-backup.snap", "OBS object name")
-	backupCmd.Flags().StringVarP(&accessKey, "os-access-key", "", "", "OTC Access Key for authentication (required)")
-	if err := backupCmd.MarkFlagRequired("os-access-key"); err != nil {
-		log.Fatalf("error on marking flag as required: %v", err)
-	}
-	backupCmd.Flags().StringVarP(&secretKey, "os-secret-key", "", "", "OTC Secret Key for authentication (required)")
-	if err := backupCmd.MarkFlagRequired("os-secret-key"); err != nil {
-		log.Fatalf("error on marking flag as required: %v", err)
-	}
-	backupCmd.Flags().StringVarP(&authURL, "os-auth-url", "", "https://iam.eu-de.otc.t-systems.com/v3", "OTC Authentication URL")
-	backupCmd.Flags().StringVarP(&domainName, "os-domain-name", "", "", "OTC Domain name (required)")
-	if err := backupCmd.MarkFlagRequired("os-domain-name"); err != nil {
-		log.Fatalf("error on marking flag as required: %v", err)
-	}
-	backupCmd.Flags().StringVarP(&projectName, "os-project-name", "", "eu-de", "OTC Project name")
+	// Define flags and configuration settings.
+	rootCmd.PersistentFlags().StringVarP(&obsBucketName, "obs-bucket-name", "", "", "OBS bucket name (required)")
+	rootCmd.PersistentFlags().StringVarP(&obsObjectName, "obs-object-name", "", "vault-raft-backup.snap", "OBS object name")
+	rootCmd.PersistentFlags().StringVarP(&accessKey, "os-access-key", "", "", "OTC Access Key for authentication (required)")
+	rootCmd.PersistentFlags().StringVarP(&secretKey, "os-secret-key", "", "", "OTC Secret Key for authentication (required)")
+	rootCmd.PersistentFlags().StringVarP(&authURL, "os-auth-url", "", "https://iam.eu-de.otc.t-systems.com/v3", "OTC Authentication URL")
+	rootCmd.PersistentFlags().StringVarP(&domainName, "os-domain-name", "", "eu-de", "OTC Domain name")
+	rootCmd.PersistentFlags().StringVarP(&projectName, "os-project-name", "", "", "OTC Project name (required)")
+	rootCmd.PersistentFlags().StringVarP(&vaultAddr, "vault-address", "", "https://127.0.0.1:8200", "Vault address")
+	rootCmd.PersistentFlags().StringVarP(&vaultRoleID, "vault-role-id", "", "", "Vault AppRole role ID (required)")
+	rootCmd.PersistentFlags().StringVarP(&vaultSecretID, "vault-secret-id", "", "", "Vault AppRole secret ID (required)")
+	rootCmd.PersistentFlags().DurationVar(&vaultTimeout, "vault-timeout", 60*time.Second, "Vault client timeout")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.vault-raft-backup.yaml)")
+
+	// Mark required flags.
+	markRequiredFlags()
 }
 
-// checkAndSetEnv ensures all required environment variables are set, providing defaults if necessary.
+// markRequiredFlags ensures that essential flags are set before the application runs.
+func markRequiredFlags() {
+	requiredFlags := []string{"vault-role-id", "vault-secret-id", "obs-bucket-name", "os-access-key", "os-secret-key", "os-domain-name"}
+	for _, flag := range requiredFlags {
+		if err := rootCmd.MarkPersistentFlagRequired(flag); err != nil {
+			log.Fatalf("Error marking flag %s as required: %v", flag, err)
+		}
+	}
+}
+
+// initConfig configures the application by binding environment variables and setting up the configuration.
+func initConfig() {
+	v := viper.New()
+
+	// Set the configuration file if provided
+	if cfgFile != "" {
+		v.SetConfigFile(cfgFile)
+	} else {
+		// Find the home directory
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Error finding home directory: %v", err)
+		}
+
+		// Search for the config file in the home directory
+		v.AddConfigPath(home)
+		v.SetConfigType("yaml")
+		v.SetConfigName(".vault-raft-backup")
+	}
+
+	// Read in the config file if it exists
+	if err := v.ReadInConfig(); err == nil {
+		fmt.Fprintln(os.Stderr, "Using config file:", v.ConfigFileUsed())
+	}
+
+	v.AutomaticEnv()
+	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+
+	// Bind flags to viper configuration
+	bindFlags(rootCmd, v)
+	// Ensure environment variables are set
+	checkAndSetEnv()
+}
+
+// bindFlags binds each cobra flag to its associated viper configuration (environment variable)
+func bindFlags(cmd *cobra.Command, v *viper.Viper) {
+	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
+		if !f.Changed && v.IsSet(f.Name) {
+			val := v.Get(f.Name)
+			if err := cmd.PersistentFlags().Set(f.Name, fmt.Sprintf("%v", val)); err != nil {
+				log.Fatalf("Error setting flag %s: %v", f.Name, err)
+			}
+		}
+	})
+}
+
+// checkAndSetEnv ensures all required environment variables for auth package are set, providing defaults if necessary.
 func checkAndSetEnv() {
 	envVariables := map[string]string{
 		"OS_ACCESS_KEY":   accessKey,
@@ -98,7 +135,7 @@ func checkAndSetEnv() {
 	}
 
 	for key, value := range envVariables {
-		if os.Getenv(key) == "" {
+		if os.Getenv(key) == "" && value != "" {
 			os.Setenv(key, value)
 		}
 	}

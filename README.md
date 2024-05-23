@@ -27,18 +27,18 @@ path "sys/storage/raft/snapshot" {
 ```
 ## Install
 
-You can install vault-backup using the following go command
+You can install vault-backup using the following go command:
 
     go install github.com/opentelekomcloud-infra/vault-raft-backup@latest
 
-or the easiest way use docker image
+Or use docker image:
 
     docker pull quay.io/opentelekomcloud/vault-raft-backup:release_0.0.1
 
 
 ## List of flags
 
-You can use flags or environment variables to set the same values.
+You can use flags, environment variables or config file to set the same values.
 
 | Variable        | Flag              | Description                       | Required | Default                                |
 |-----------------|-------------------|-----------------------------------|----------|----------------------------------------|
@@ -53,6 +53,7 @@ You can use flags or environment variables to set the same values.
 | VAULT_ROLE_ID   | --vault-role-id   | Vault AppRole role ID             | true     |                                        |
 | VAULT_SECRET_ID | --vault-secret-id | Vault AppRole secret ID           | true     |                                        |
 | VAULT_TIMEOUT   | --vault-timeout   | Vault Client timeout              | false    | 60s                                    |
+| CONFIG          | --config          | Config file                       | false    | `$HOME/.vault-raft-backup.yaml`        |
 
 For more details use `vault-raft-backup backup --help`
 
@@ -64,4 +65,22 @@ docker run --rm -it vault-raft-backup backup --vault-role-id xxx --vault-secret-
 
 ```
 ./vault-raft-backup backup --vault-role-id xxx --vault-secret-id xxx --obs-bucket-name "test-bucket" --os-access-key xxx  --os-secret-key xxx --os-domain-name xxx
+```
+
+You can also use a config file to set the same values instead of passing them as flags or environment variables. The default config file location is $HOME/.vault-raft-backup.yaml, but you can specify a different file using the --config flag.
+
+Example of a config file (vault-raft-backup.yaml):
+
+```yaml
+obs_bucket_name: "test-bucket"
+obs_object_name: "vault-raft-backup.snap"
+os_access_key: "your-access-key"
+os_secret_key: "your-secret-key"
+os_auth_url: "https://iam.eu-de.otc.t-systems.com/v3"
+os_domain_name: "your-domain-name"
+os_project_name: "your-project-name"
+vault_address: "https://127.0.0.1:8200"
+vault_role_id: "your-vault-role-id"
+vault_secret_id: "your-vault-secret-id"
+vault_timeout: "60s"
 ```
