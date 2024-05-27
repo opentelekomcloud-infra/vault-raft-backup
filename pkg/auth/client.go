@@ -17,6 +17,7 @@ const envPrefix = "OS_"
 type cc struct {
 	*openstack.Cloud
 	*golangsdk.ProviderClient
+	IdentityV3Client *golangsdk.ServiceClient
 }
 
 // copyCloud makes a deep copy of cloud configuration
@@ -47,11 +48,18 @@ func CloudAndClient() (*cc, error) {
 		return nil, fmt.Errorf("error copying cloud: %w", err)
 	}
 	// Authenticate the client using the cloud configuration
-	client, err := EnvOS.AuthenticatedClient()
+	providerClient, err := EnvOS.AuthenticatedClient()
 	if err != nil {
 		return nil, err
 	}
-	return &cc{cloud, client}, nil
+	// Create a new Identity V3 service client
+	identityV3Client, err := openstack.NewIdentityV3(providerClient, golangsdk.EndpointOpts{
+		Region: cloud.RegionName,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error creating identity V3 client: %s", err)
+	}
+	return &cc{cloud, providerClient, identityV3Client}, nil
 }
 
 // SetupTemporaryAKSK configures temporary AK/SK credentials for the given cloud configuration
@@ -60,39 +68,20 @@ func SetupTemporaryAKSK(config *cc) error {
 	if config.AKSKAuthOptions.AccessKey != "" {
 		return nil
 	}
-
-	// Create a new Identity V3 client
-	client, err := NewIdentityV3Client()
-	if err != nil {
-		return fmt.Errorf("error creating identity v3 domain client: %s", err)
+	if config.IdentityV3Client == nil {
+		return fmt.Errorf("Identity V3 client is not initialized")
 	}
-
 	// Create temporary AK/SK credentials using the client
-	credential, err := credentials.CreateTemporary(client, credentials.CreateTemporaryOpts{
+	credential, err := credentials.CreateTemporary(config.IdentityV3Client, credentials.CreateTemporaryOpts{
 		Methods: []string{"token"},
-		Token:   client.Token(),
+		Token:   config.IdentityV3Client.Token(),
 	}).Extract()
 	if err != nil {
 		return fmt.Errorf("error creating temporary AK/SK: %s", err)
 	}
-
 	// Set the temporary credentials in the cloud configuration
 	config.AKSKAuthOptions.AccessKey = credential.AccessKey
 	config.AKSKAuthOptions.SecretKey = credential.SecretKey
 	config.AKSKAuthOptions.SecurityToken = credential.SecurityToken
 	return nil
-}
-
-// NewIdentityV3Client creates a new Identity V3 client for interacting with the OpenStack Identity service
-func NewIdentityV3Client() (*golangsdk.ServiceClient, error) {
-	// Retrieve the cloud configuration and authenticated client
-	cc, err := CloudAndClient()
-	if err != nil {
-		return nil, err
-	}
-
-	// Create a new Identity V3 service client
-	return openstack.NewIdentityV3(cc.ProviderClient, golangsdk.EndpointOpts{
-		Region: cc.RegionName,
-	})
 }
