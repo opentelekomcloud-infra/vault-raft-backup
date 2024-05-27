@@ -3,7 +3,6 @@ package obs
 import (
 	"fmt"
 	"io"
-	"log"
 
 	"github.com/opentelekomcloud-infra/vault-raft-backup/pkg/auth"
 	golangsdk "github.com/opentelekomcloud/gophertelekomcloud"
@@ -70,11 +69,10 @@ func (c *Client) UploadToOBS(buffer io.Reader, config *Config) error {
 		Body: buffer,
 	}
 
-	output, err := c.obsClient.PutObject(input)
+	_, err := c.obsClient.PutObject(input)
 	if err != nil {
 		return fmt.Errorf("failed to upload to OBS: %s", err)
 	}
 
-	log.Printf("Upload to OBS successful: %+v", output)
 	return nil
 }
