@@ -47,8 +47,8 @@ You can use flags, environment variables or config file to set the same values.
 | OS_ACCESS_KEY   | --os-access-key   | OTC Access Key for authentication | true     |                                        |
 | OS_SECRET_KEY   | --os-secret-key   | OTC Secret Key for authentication | true     |                                        |
 | OS_AUTH_URL     | --os-auth-url     | OTC Authentication URL            | false    | https://iam.eu-de.otc.t-systems.com/v3 |
-| OS_DOMAIN_NAME  | --os-domain-name  | OTC Domain name                   | false    | eu-de                                  |
-| OS_PROJECT_NAME | --os-project-name | OTC Project name                  | true     |                                        |
+| OS_DOMAIN_NAME  | --os-domain-name  | OTC Domain name                   | true     |                                        |
+| OS_PROJECT_NAME | --os-project-name | OTC Project name                  | false    | eu-de                                  |
 | VAULT_ADDRESS   | --vault-address   | Vault address                     | false    | https://127.0.0.1:8200                 |
 | VAULT_ROLE_ID   | --vault-role-id   | Vault AppRole role ID             | true     |                                        |
 | VAULT_SECRET_ID | --vault-secret-id | Vault AppRole secret ID           | true     |                                        |
